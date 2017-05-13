@@ -94,6 +94,28 @@ bleno.on('advertisingStart', function(error) {
                             callback(this.RESULT_SUCCESS);
                         }
                     }
+                }),
+                // CHARACTERISTIC 3. Receive signed POV
+                new bleno.Characteristic({
+                    value:null,
+                    uuid:'0003',
+                    properties: ['notify'],
+                    descriptors: [
+                        new bleno.Descriptor({
+                            uuid: '0001',
+                            value: 'Receive here your POV notification'
+                        })
+                    ],
+                    // on subscription request, log to the console
+                    onSubscribe: function(maxValueSize, updateValueCallback) {
+                        console.log("Subscribed to the POV notification characteristic");
+                        updateValueCallback(new Buffer("TODO: CHANGE THIS".toString('uft-8')));
+                        // TODO: send here the updateValueCallback()
+                    },
+                    // on unsubscriptioni, log into the console
+                    onUnsubscribe: function(offset, callback) {
+                        console.log("Unsubscribed to the POV notification characteristic");
+                    }
                 })
             ]
         })
