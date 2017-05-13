@@ -11,11 +11,15 @@ var crypto = require('./crypto');
 
 // initial set up - max 21 chars due to BLE limit
 var _nonce_length = 21;
+var reset_challenge = function() {
+    _full_challenge = "";
+}
 
 // Advertise the BLE adrress when bleno start
 bleno.on('stateChange', function(state) {
     console.log('State change: ' + state);
         if(state === 'poweredOn') {
+        reset_challenge();
         bleno.startAdvertising('RaspberryPi',['12ab']);
         } else {
         bleno.stopAdvertising();
@@ -27,9 +31,10 @@ bleno.on('accept', function(clientAddress) {
     console.log('Accepted connection from address: ' + clientAddress);
 });
 
-// Log when disconnecting
+// Disconnect callback: reset the challenge
 bleno.on('disconnect', function(clientAddress) {
     console.log('Disconnected from address: ' + clientAddress);
+    reset_challenge();
 });
 
 // Create a new service and characteristic when advertising begins
@@ -54,9 +59,10 @@ bleno.on('advertisingStart', function(error) {
                             value: 'Proof of Visit entry: serves a nonce string'
                         })
                     ],
-                    // on read request, send a message back with the value
+                    // on read request, send a message back with the value and reset the challenge
                     onReadRequest: function(offset, callback) {
                         var _nonce = crypto.nonce(_nonce_length);
+                        reset_challenge();
                         console.log("Proof of Visit read: nonce is: " + _nonce);
                         callback(this.RESULT_SUCCESS, new Buffer(_nonce));
                     }
@@ -83,6 +89,8 @@ bleno.on('advertisingStart', function(error) {
                         } else {
                             var _challenge = data.toString('utf-8');
                             console.log("Challenge string trial: " + _challenge);
+                            _full_challenge += _challenge
+                            console.log("Full challenge string trial: " + _full_challenge);
                             callback(this.RESULT_SUCCESS);
                         }
                     }
