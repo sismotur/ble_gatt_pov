@@ -18,4 +18,11 @@ var nonce = function(length) {
     return _n.toString("utf-8");
 }
 
+var endsWith = function(str, suffix) {
+    // console.log("Called endswith, str = " + str + ", suffix = " + suffix);
+    return str.indexOf(suffix, str.length - suffix.length) !== -1;
+}
+
 module.exports.nonce  = nonce;
+module.exports.endsWith  = endsWith;
+
