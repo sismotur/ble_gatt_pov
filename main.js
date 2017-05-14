@@ -7,12 +7,35 @@
 
 // requires
 var bleno = require('bleno');
-var crypto = require('./crypto');
+var crypto = require('./crypto_gatt');
 
 // initial set up - max 21 chars due to BLE limit
-var _nonce_length = 21;
+var _nonceLength = 21;
+var _timeStr;
+var _timeStartMillis;
+var _timeStopMillis;
+var _timeElapsedMillis;
+var _timeLimitMillis = 30000; // 60 seconds
+var _currentNonce;
+var _mockChallengeSolution = "inventrip";
+var _POV;
+var _POV_STATE;
+
+// operation codes
+var _POV_STATE_SUCCESS = 1;
+
+// global methods
+
+// resets the global variables
 var reset_challenge = function() {
-    _full_challenge = "";
+    _POV = "";
+    _POV_STATE = 0;
+    _currentNonce = "";
+    _fullChallenge = "";
+    _timeStartMillis = new Date();
+    _timeStopMillis = 0;
+    _timeElapsedMillis = 0;
+    _timeStr = new Date().toISOString();
 }
 
 // Advertise the BLE adrress when bleno start
@@ -29,6 +52,7 @@ bleno.on('stateChange', function(state) {
 // Log when accepting connections
 bleno.on('accept', function(clientAddress) {
     console.log('Accepted connection from address: ' + clientAddress);
+    console.log('Current GMT time: ' + _timeStr.replace(/T/,' '));
 });
 
 // Disconnect callback: reset the challenge
@@ -61,13 +85,17 @@ bleno.on('advertisingStart', function(error) {
                     ],
                     // on read request, send a message back with the value and reset the challenge
                     onReadRequest: function(offset, callback) {
-                        var _nonce = crypto.nonce(_nonce_length);
+                        this._currentNonce = crypto.nonce(_nonceLength);
+                        console.log("****************************************");
+                        console.log("Proof of Visit read: nonce is: " + this._currentNonce);
                         reset_challenge();
-                        console.log("Proof of Visit read: nonce is: " + _nonce);
-                        callback(this.RESULT_SUCCESS, new Buffer(_nonce));
+                        console.log('Current GMT time: ' + _timeStr.replace(/T/,' '));
+                        console.log("Maximum time to solve the challenge is: " + 
+                                (_timeLimitMillis / 1000).toString() + " seconds");
+                        callback(this.RESULT_SUCCESS, new Buffer(this._currentNonce));
                     }
                 }),
-                // CHARACTERISTIC 2. Receive public key, nonce, signature
+                // CHARACTERISTIC 2. Receive and check client submission
                 new bleno.Characteristic({
                     value:null,
                     uuid:'0002',
@@ -80,17 +108,37 @@ bleno.on('advertisingStart', function(error) {
                     ],
                     // on write request, log in the console the value
                     onWriteRequest: function(data, offset, withoutResponse, callback) {
+
+                        // check the counter
+                        this._timeStopMillis = new Date();
+                        this._timeElapsedMillis = this._timeStopMillis - this._timeStartMillis
+                        
+                        // print the timer
+                        console.log("****************************************");
+                        console.log("Challenge submission");
+                        console.log("Time elapsed : " + (this._timeElapsedMillis / 1000).toString()); 
+
                         if(offset) {
                             callback(this.RESULT_ATTR_NOT_LONG);
                             console.log("Challenge string invalid (nil)");
                         } else if (data.length < 4) {
                             console.log("Challenge string invalid (min 4 characters)");
                             callback(this.RESULT_INVALID_ATTRIBUTE_LENGTH);
+                        } else if (_timeElapsedMillis > _timeLimitMillis) { 
+                            console.log("Challenge timeout");
+                            callback(this.RESULT_INVALID_ATTRIBUTE_LENGTH);
                         } else {
                             var _challenge = data.toString('utf-8');
-                            console.log("Challenge string trial: " + _challenge);
-                            _full_challenge += _challenge
-                            console.log("Full challenge string trial: " + _full_challenge);
+                            console.log("Challenge string submitted: " + _challenge);
+                            this._fullChallenge += _challenge
+                            console.log("Full challenge string submitted: " + this._fullChallenge);
+                            // Check if the solution 
+                            if (_fullChallenge === _mockChallengeSolution) { 
+                                this._POV = "{pubkey:'12345',sig:'abcdef'}"
+                                this._POV_STATE = _POV_STATE_SUCCESS;
+                            } else {
+                                console.log("Invalid solution");
+                            }
                             callback(this.RESULT_SUCCESS);
                         }
                     }
@@ -108,9 +156,15 @@ bleno.on('advertisingStart', function(error) {
                     ],
                     // on subscription request, log to the console
                     onSubscribe: function(maxValueSize, updateValueCallback) {
+                        console.log("****************************************");
                         console.log("Subscribed to the POV notification characteristic");
-                        updateValueCallback(new Buffer("TODO: CHANGE THIS".toString('uft-8')));
-                        // TODO: send here the updateValueCallback()
+                        this.intervalId = setInterval(function() {
+                            // Send the POV once it is available
+                            if (_POV !== "") {
+                                console.log("Notification value is: " + this._POV_STATE);
+                                updateValueCallback(new Buffer(this._POV_STATE.toString('utf-8')));
+                            }
+                        },1000)
                     },
                     // on unsubscriptioni, log into the console
                     onUnsubscribe: function(offset, callback) {

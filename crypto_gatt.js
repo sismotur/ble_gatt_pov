@@ -4,6 +4,9 @@
  * copyright: Sismotur (C) 2017
  */
 
+// var bitcoin = require('bitcoinjs-lib');
+
+
 var nonce = function(length) {
     var _n = "";
     var _chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
