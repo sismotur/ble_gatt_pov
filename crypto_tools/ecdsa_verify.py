@@ -14,7 +14,7 @@ python bitcoin_verify.py -s '740894121e1c7f33b174153a7349f6899d0a1d2730e9cc59f67
 """
 
 import sys, getopt, binascii, codecs
-from ecdsa import VerifyingKey, SECP256k1
+from ecdsa import VerifyingKey, SECP256k1,BadSignatureError
 
 
 def verify(sig, message, public_key):
@@ -22,8 +22,11 @@ def verify(sig, message, public_key):
     print("message = ", message.decode('ascii'))
     print("signature = ", sig)
     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
-    return vk.verify(bytes.fromhex(sig), message)
-
+    try:
+        vk.verify(bytes.fromhex(sig), message)
+        return True
+    except BadSignatureError:
+        return False
 
 def main(argv):
     print("""
