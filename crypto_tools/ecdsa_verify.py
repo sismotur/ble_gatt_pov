@@ -13,14 +13,14 @@ python bitcoin_verify.py -s '740894121e1c7f33b174153a7349f6899d0a1d2730e9cc59f67
 
 """
 
-import sys, getopt, binascii
+import sys, getopt, binascii, codecs
 from ecdsa import VerifyingKey, SECP256k1
 
 
 def verify(sig, message, public_key):
-    print("sig= ", sig)
-    print("message= ", message)
-    print("public key= ", public_key)
+    print("public key = ", public_key)
+    print("message = ", message.decode('ascii'))
+    print("signature = ", sig)
     vk = VerifyingKey.from_string(bytes.fromhex(public_key), curve=SECP256k1)
     return vk.verify(bytes.fromhex(sig), message)
 
@@ -35,7 +35,9 @@ def main(argv):
     except getopt.GetoptError:
         print("bitcoin_verify.py -s 'signature hex string' -m 'message string' -p 'public key hex'")
         sys.exit(2)
-
+    
+    # TODO: check that required arguments are there
+    
     # pick up the arguments
     for opt, arg in opts:
         if opt == '-h':
@@ -50,7 +52,11 @@ def main(argv):
     
     # call the verifying function and print the result
     result = verify(s,m,pubkey)
-    print("The result is: ", result)
+    print()
+    if result:
+        print("*** THE RESULT IS PASS ***")
+    else:
+        print("*** THE RESULT IS FAIL ***")
 
 if __name__ == '__main__':
     main(sys.argv[1:])

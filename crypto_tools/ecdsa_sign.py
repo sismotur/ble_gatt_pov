@@ -26,8 +26,13 @@ print("message = ", message.decode('ascii'))
 signature = sk.sign(message)
 print("signature = ", codecs.encode(signature,'hex').decode('ascii'))
 if (pubkey.verify(signature, message)):
-    print("verification OK")
-    print("python bitcoin_verify.py -s '", codecs.encode(signature,'hex').decode('ascii'), "' -m '", message.decode('ascii'), "' -p '", codecs.encode(pubkey.to_string(),'hex').decode('ascii'), "'", sep='')
+    print("""
+    *** VERIFICATION OK ***
+    
+    To double check run this script: 
+    
+    """)
+    print("python ecdsa_verify.py -s '", codecs.encode(signature,'hex').decode('ascii'), "' -m '", message.decode('ascii'), "' -p '", codecs.encode(pubkey.to_string(),'hex').decode('ascii'), "'", sep='')
 else:
     print("Verification NOK - please check script")
 
